@@ -5,9 +5,11 @@ import { CreatePresignedUrlsRequest } from "./Interfaces/create-presigned-urls-r
 import { CreatePresignedUrlsResponse } from "./Interfaces/create-presigned-urls-response";
 import { PutMultiPartFileresponse } from "./Interfaces/put-multipart-file-response";
 import { PartETag } from "./Interfaces/complete-multipart-upload-request";
+import { FileService } from "./Services/file-service";
 
 class S3Uploader {
     private readonly s3UploadService: S3UploadService;
+    private readonly fileService: FileService;
     private readonly numberOfRetry: number;
     private uploadId = "";    
     private file: File;
@@ -15,6 +17,7 @@ class S3Uploader {
     constructor(file: File, config: S3UploaderConfig){
         this.file = file;
         this.s3UploadService = new S3UploadService(config.urlPaths);
+        this.fileService = new FileService();
         this.numberOfRetry = config.numberOfRetry;
     }
 
@@ -34,14 +37,15 @@ class S3Uploader {
     }
 
     private async uploadFileUsingPresignedUrls(key: string, bucketName: string): Promise<Array<PartETag>> {
-        const { fileChunkSize, numberOfChunks } = this.calculateChunks();
+        const { fileChunkSize, numberOfChunks } = this.fileService.calculateChunks(this.file);
         const partETags : Array<PartETag> = [];
 
         for (const requests of this.createPresignedRequestSets(numberOfChunks, key, bucketName)) {
             const res = await this.s3UploadService.CreatePresignedUrls(requests);
             const presignedUrlsResponses = res.data;
 
-            const muiltiPartUploadRequests = presignedUrlsResponses.map(request => this.uploadWithRetry(request, fileChunkSize, numberOfChunks));
+            const muiltiPartUploadRequests = presignedUrlsResponses.map(request => 
+                this.uploadWithRetry(request, fileChunkSize, numberOfChunks));
             const mutliPartUploadResponses = await Promise.all(muiltiPartUploadRequests);
 
             mutliPartUploadResponses.forEach((response, index) => {
@@ -53,19 +57,6 @@ class S3Uploader {
         }
 
         return partETags;
-    }
-
-    private calculateChunks() {
-        const MAXIMUM_MULTIPART_PARTS_SIZE = 10000; // AWS hard limit
-        let fileChunkSize = 5242880; // 5MB as default 
-        let numberOfChunks = Math.floor(this.file.size / fileChunkSize) + 1;
-
-        if (numberOfChunks > MAXIMUM_MULTIPART_PARTS_SIZE) {
-            fileChunkSize = this.file.size / 10000;
-            numberOfChunks = 10000;
-        }
-
-        return { fileChunkSize, numberOfChunks };
     }
 
     private* createPresignedRequestSets(numberOfChunks: number, key: string, bucketName: string) {
@@ -92,9 +83,11 @@ class S3Uploader {
         }
     }
 
-    private async uploadWithRetry(request: CreatePresignedUrlsResponse, fileChunkSize: number, numberOfChunks: number, iteration = 0): Promise<AxiosResponse<PutMultiPartFileresponse>> {
+    private async uploadWithRetry(
+        request: CreatePresignedUrlsResponse, fileChunkSize: number, numberOfChunks: number, iteration = 0)
+        : Promise<AxiosResponse<PutMultiPartFileresponse>> {
         try {
-            const blob = this.createBlob(fileChunkSize, request.partNumber, numberOfChunks);
+            const blob = this.fileService.createBlob(this.file, fileChunkSize, request.partNumber, numberOfChunks);
             return await this.s3UploadService.PutMultiPartFile({ 
                 presignedUrl: request.presignedUrl.replace("https://localstack", "https://localhost"), 
                 blob,
@@ -108,13 +101,6 @@ class S3Uploader {
             }
             return this.uploadWithRetry(request, fileChunkSize, numberOfChunks, iteration++);
         }
-    }
-
-    private createBlob(fileChunkSize: number, multiPartNumber: number, numberOfChunks: number): Blob {
-        const start = (multiPartNumber - 1) * fileChunkSize;
-        const end = multiPartNumber * fileChunkSize;
-
-        return (multiPartNumber < numberOfChunks) ? this.file.slice(start, end) : this.file.slice(start);
     }
 }
 
