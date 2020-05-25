@@ -1,6 +1,6 @@
 import React, { Component} from 'react';
-import axios from 'axios'
 import './App.css';
+import { S3Uploader } from './S3Uploader/s3Uploader';
 
 
 export default class App extends Component {
@@ -10,7 +10,7 @@ export default class App extends Component {
       selectedFile: null,
       uploadId: '',
       fileName: '',
-      BucketName: 'kojitesting',
+      bucketName: '',
       backendUrl: 'https://localhost:44362/api/s3'
     }
 }
@@ -31,6 +31,10 @@ async fileChangedHandler(event) {
   }
 }
 
+handleChange(event) {
+  this.setState({ bucketName: event.target.value });
+}
+
 // ===============================================
 // The startUpload function obtains an uploadId generated in the backend
 // server by the AWS S3 SDK. This uploadId will be used subsequently for uploading
@@ -38,106 +42,19 @@ async fileChangedHandler(event) {
 // ===============================================
 
 async startUpload(event) {
-  try {
-    // console.log('Inside startUpload')
-    event.preventDefault()
+  event.preventDefault();
+  const baseUri = "https://localhost:44362/api/s3/";
+  const config = {
+    urlPaths: {
+      startMultiPartUploadUrl: baseUri + "Start_MultiPart",
+      createPresignedUrl: baseUri + "Create_PresignedUrl",
+      completeMultiPartUploadUrl: baseUri + "Complete_MultiPartUpload"
+    },
+    numberOfRetry: 3
+  };
 
-    console.log(this.state.selectedFile.type + ' FileType')
-    let resp = await axios.post(`${this.state.backendUrl}/Start_MultiPart`, {
-        BucketName: this.state.BucketName,
-        Key: this.state.fileName
-    })
-
-    let uploadId = resp.data
-    console.log(uploadId);
-    this.setState({uploadId})
-
-    this.uploadMultipartFile()
-  } catch(err) {
-    console.log(err)
-  }
-}
-
-// ===============================================
-// The uploadMultipartFile function splits the selectedFile into chunks
-// of 10MB and does the following:
-// (1) call the backend server for a presigned url for each part,
-// (2) uploads them, and
-// (3) upon completion of all responses, sends a completeMultipartUpload call to the backend server.
-//
-// Note: the AWS SDK can only split one file into 10,000 separate uploads.
-// This means that, each uploaded part being 10MB, each file has a max size of 
-// 100GB.
-// ===============================================
-
-async uploadMultipartFile() {
-  try {
-    console.log('Inside uploadMultipartFile')
-    const FILE_CHUNK_SIZE = 10000000 // 10MB
-    const fileSize = this.state.selectedFile.size
-    const NUM_CHUNKS = Math.floor(fileSize / FILE_CHUNK_SIZE) + 1
-    let promisesArray = []
-    let start, end, blob
-
-    for (let index = 1; index < NUM_CHUNKS + 1; index++) {
-      start = (index - 1)*FILE_CHUNK_SIZE
-      end = (index)*FILE_CHUNK_SIZE
-      blob = (index < NUM_CHUNKS) ? this.state.selectedFile.slice(start, end) : this.state.selectedFile.slice(start)
-
-      // (1) Generate presigned URL for each part
-      let getUploadUrlResp = await axios.post(`${this.state.backendUrl}/Create_PresignedUrl`, {
-          Key: this.state.fileName,
-          BucketName: this.state.BucketName,
-          PartNumber: index,
-          UploadId: this.state.uploadId,
-          ContentType: this.state.selectedFile.type
-      })
-
-      let presignedUrl = getUploadUrlResp.data
-      // presignedUrl = presignedUrl.replace("https://localstack", "http://localhost");
-      console.log('   Presigned URL ' + index + ': ' + presignedUrl + ' filetype ' + this.state.selectedFile.type)
-
-      // (2) Puts each file part into the storage server
-      let uploadResp = axios.put(
-        presignedUrl,
-        blob,
-        { 
-          headers: { 
-            'Content-Type': this.state.selectedFile.type,
-          } 
-        }
-      )
-      // console.log('   Upload no ' + index + '; Etag: ' + uploadResp.headers.etag)
-      promisesArray.push(uploadResp)
-    }
-
-    let resolvedArray = await Promise.all(promisesArray)
-    console.log(resolvedArray, ' resolvedAr')
-
-    let uploadPartsArray = []
-    resolvedArray.forEach((resolvedPromise, index) => {
-      console.log(resolvedPromise.headers.etag, "etag");
-      uploadPartsArray.push({
-        ETag: resolvedPromise.headers.etag,
-        PartNumber: index + 1
-      })
-    })
-
-    // (3) Calls the CompleteMultipartUpload endpoint in the backend server
-
-    console.log('sending finish', this.state.uploadId);
-    let completeUploadResp = await axios.post(`${this.state.backendUrl}/Complete_MultiPartUpload`, {
-      bucketName: this.state.BucketName,
-      key: this.state.fileName,
-      partETags: uploadPartsArray,
-      uploadId: this.state.uploadId
-    })
-
-    console.log(completeUploadResp.data, ' Stuff')
-
-  } catch(err) {
-    console.log(err)
-  }
+  const s3Uploader = new S3Uploader(this.state.selectedFile, config);
+  s3Uploader.Upload("cortstesting2", "");
 }
 
 render() {
