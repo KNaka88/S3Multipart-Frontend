@@ -11,7 +11,7 @@ This repo shows an example of using presigned url with multi part upload (Fronte
 
 ### TODO
 * Add input form to accept bucket name
-  * Meanwhile, please manually update [this line](https://github.com/KNaka88/S3Multipart-Frontend/blob/master/src/App.js#L57)
+  * Meanwhile, please manually update [this line](https://github.com/KNaka88/S3Multipart-Frontend/blob/master/src/App.js#L45)
 
 ```
   s3Uploader.Upload("YOUR-BUCKET-NAME", "");
