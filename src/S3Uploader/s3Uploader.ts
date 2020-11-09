@@ -99,7 +99,7 @@ class S3Uploader {
             if (iteration === this.numberOfRetry || errorIs400s) {
                 throw new Error("Retry Failed");
             }
-            return this.uploadWithRetry(request, fileChunkSize, numberOfChunks, iteration++);
+            return this.uploadWithRetry(request, fileChunkSize, numberOfChunks, ++iteration);
         }
     }
 }
