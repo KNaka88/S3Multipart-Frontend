@@ -4,7 +4,6 @@ import { CreatePresignedUrlsRequest } from "../Interfaces/create-presigned-urls-
 import { CompleteMultiPartUploadRequest } from "../Interfaces/complete-multipart-upload-request";
 import { CreatePresignedUrlsResponse } from "../Interfaces/create-presigned-urls-response";
 import { StartMultiPartUploadRequest } from "../Interfaces/start-multi-part-upload-request";
-import { StartMultiPartUploadResponse } from "../Interfaces/start-multi-part-upload-response";
 import { PutMultiPartFileRequest } from "../Interfaces/put-multipart-file-request";
 import { PutMultiPartFileresponse } from "../Interfaces/put-multipart-file-response";
 
@@ -19,20 +18,20 @@ class S3UploadService {
         this.completeMultiPartUploadUrl = urlPaths.completeMultiPartUploadUrl;
     };
 
-    public StartMultiPartUpload({ bucketName, key }: StartMultiPartUploadRequest): AxiosPromise<StartMultiPartUploadResponse> {
-        return axios.post<StartMultiPartUploadResponse>(this.startMultipartUploadUrl, {
-            bucketName,
-            key
+    public StartMultiPartUpload({ fileName, folderName = "" }: StartMultiPartUploadRequest): AxiosPromise {
+        return axios.post(this.startMultipartUploadUrl, {
+            fileName,
+            folderName
         });
     }
 
-    public CreatePresignedUrls({ key, bucketName, partNumbers, uploadId, contentType }: CreatePresignedUrlsRequest): AxiosPromise<Array<CreatePresignedUrlsResponse>> {
+    public CreatePresignedUrls({ fileName, folderName, uploadId, partNumbers, contentType }: CreatePresignedUrlsRequest): AxiosPromise<Array<CreatePresignedUrlsResponse>> {
         return axios.post<Array<CreatePresignedUrlsResponse>>(this.createPresignedUrl, {
-            key,
-            bucketName,
-            partNumbers,
             uploadId,
-            contentType
+            fileName,
+            folderName,
+            contentType,
+            partNumbers
         });
     }
 
@@ -42,10 +41,10 @@ class S3UploadService {
         });
     }
 
-    public ComplteMultiPartUpload({ bucketName, key, partETags, uploadId } : CompleteMultiPartUploadRequest): AxiosPromise<void> {
+    public ComplteMultiPartUpload({ fileName, folderName, partETags, uploadId } : CompleteMultiPartUploadRequest): AxiosPromise<void> {
         return axios.post<void>(this.completeMultiPartUploadUrl, {
-            bucketName,
-            key,
+            fileName,
+            folderName,
             partETags,
             uploadId
         });

@@ -1,5 +1,4 @@
-import React, { Component} from 'react';
-import './App.css';
+import React, { Component } from 'react';
 import { S3Uploader } from './S3Uploader/s3Uploader';
 
 export default class App extends Component {
@@ -7,10 +6,7 @@ export default class App extends Component {
 		super(props)
     this.state = {
       selectedFile: null,
-      uploadId: '',
       fileName: '',
-      bucketName: '',
-      backendUrl: 'https://localhost:44362/api/s3'
     }
   }
 
@@ -31,18 +27,18 @@ export default class App extends Component {
 
   async startUpload(event) {
     event.preventDefault();
-    const baseUri = "https://localhost:44362/api/s3/";
+    const baseUri = "https://pamu19kq23.execute-api.us-west-2.amazonaws.com/Prod/";
     const config = {
       urlPaths: {
-        startMultiPartUploadUrl: baseUri + "Start_MultiPart",
-        createPresignedUrl: baseUri + "Create_PresignedUrl",
-        completeMultiPartUploadUrl: baseUri + "Complete_MultiPartUpload"
+        startMultiPartUploadUrl: baseUri + "StartMultipartUpload",
+        createPresignedUrl: baseUri + "CreatePresignedUrl",
+        completeMultiPartUploadUrl: baseUri + "CompleteMultiPartUpload"
       },
       numberOfRetry: 3
     };
 
     const s3Uploader = new S3Uploader(this.state.selectedFile, config);
-    s3Uploader.Upload("", "");
+    s3Uploader.Upload();
   }
 
     render() {

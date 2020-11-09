@@ -21,26 +21,26 @@ class S3Uploader {
         this.numberOfRetry = config.numberOfRetry;
     }
 
-    public async Upload(bucketName: string, keyPrefix: string) {
-        const key = keyPrefix ? `${keyPrefix}/${this.file.name}` : this.file.name;
-        const startMultiPartResponse = await this.s3UploadService.StartMultiPartUpload({ bucketName, key });
-        this.uploadId = startMultiPartResponse.data.uploadId;        
+    public async Upload(folderName: string = "") {
+        const fileName = this.file.name;
+        const startMultiPartResponse = await this.s3UploadService.StartMultiPartUpload({ fileName, folderName });
+        this.uploadId = startMultiPartResponse.data;       
 
-        const partETags = await this.uploadFileUsingPresignedUrls(key, bucketName);
+        const partETags = await this.uploadFileUsingPresignedUrls(fileName, folderName);
 
         await this.s3UploadService.ComplteMultiPartUpload({
-            bucketName,
-            key,
+            folderName,
+            fileName,
             partETags,
             uploadId: this.uploadId
         });
     }
 
-    private async uploadFileUsingPresignedUrls(key: string, bucketName: string): Promise<Array<PartETag>> {
+    private async uploadFileUsingPresignedUrls(fileName: string, folderName: string): Promise<Array<PartETag>> {
         const { fileChunkSize, numberOfChunks } = this.fileService.calculateChunks(this.file);
         const partETags : Array<PartETag> = [];
 
-        for (const requests of this.createPresignedRequestSets(numberOfChunks, key, bucketName)) {
+        for (const requests of this.createPresignedRequestSets(numberOfChunks, fileName, folderName)) {
             const res = await this.s3UploadService.CreatePresignedUrls(requests);
             const presignedUrlsResponses = res.data;
 
@@ -59,7 +59,7 @@ class S3Uploader {
         return partETags;
     }
 
-    private* createPresignedRequestSets(numberOfChunks: number, key: string, bucketName: string) {
+    private* createPresignedRequestSets(numberOfChunks: number, fileName: string, folderName: string) {
         const concurrency = numberOfChunks < 10000 ? 3 : 1;
 
         let partNumbers: Array<number> = [];
@@ -70,9 +70,9 @@ class S3Uploader {
 
             if (tempCounter === concurrency || partNumber === numberOfChunks) {
                 const createPresignedUrlsRequest = {
-                    key,
-                    bucketName,
                     partNumbers,
+                    fileName,
+                    folderName,
                     uploadId: this.uploadId,
                     contentType: this.file.type
                 } as CreatePresignedUrlsRequest;
@@ -89,7 +89,7 @@ class S3Uploader {
         try {
             const blob = this.fileService.createBlob(this.file, fileChunkSize, request.partNumber, numberOfChunks);
             return await this.s3UploadService.PutMultiPartFile({ 
-                presignedUrl: request.presignedUrl.replace("https://localstack", "https://localhost"), 
+                presignedUrl: request.presignedUrl, 
                 blob,
                 headers: { 'Content-Type': this.file.type }
             });
@@ -99,7 +99,8 @@ class S3Uploader {
             if (iteration === this.numberOfRetry || errorIs400s) {
                 throw new Error("Retry Failed");
             }
-            return this.uploadWithRetry(request, fileChunkSize, numberOfChunks, iteration++);
+            iteration++;
+            return this.uploadWithRetry(request, fileChunkSize, numberOfChunks, iteration);
         }
     }
 }
