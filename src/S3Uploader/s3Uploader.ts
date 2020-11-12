@@ -15,13 +15,18 @@ class S3Uploader {
     private readonly retryService: RetryService;
     private uploadId = "";    
     private file: File;
+    private progress: any;
 
-    constructor(file: File, config: S3UploaderConfig){
+    constructor(file: File, config: S3UploaderConfig, progress: any = null) {
         this.file = file;
         this.s3UploadService = new S3UploadService(config.urlPaths);
         this.fileService = new FileService();
         this.numberOfRetry = config.numberOfRetry;
         this.retryService = new RetryService();
+
+        if (progress) {
+            this.progress = progress;
+        }
     }
 
     public async Upload(folderName: string = "") {
@@ -44,8 +49,14 @@ class S3Uploader {
     }
 
     private async uploadFileUsingPresignedUrls(fileName: string, folderName: string): Promise<Array<PartETag>> {
-        const { fileChunkSize, numberOfChunks } = this.fileService.calculateChunks(this.file);
+        const { fileChunkSize, numberOfChunks, fileSize } = this.fileService.calculateChunks(this.file);
         const partETags : Array<PartETag> = [];
+
+        this.progress({
+            fileName,
+            fileSize,
+            progress: partETags.length/numberOfChunks * 100
+        });
 
         for (const requests of this.createPresignedRequestSets(numberOfChunks, fileName, folderName)) {
             const res = await this.retryService.withRetry(this.numberOfRetry, async () => {
@@ -62,8 +73,13 @@ class S3Uploader {
                     partNumber: requests.partNumbers[index]
                 });
             });
-        }
 
+            this.progress({
+                fileName,
+                fileSize,
+                progress: partETags.length/numberOfChunks * 100
+            });
+        }
         return partETags;
     }
 

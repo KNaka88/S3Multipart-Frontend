@@ -27,17 +27,20 @@ export default class App extends Component {
 
   async startUpload(event) {
     event.preventDefault();
-    const baseUri = "https://pamu19kq23.execute-api.us-west-2.amazonaws.com/Prod/";
+    const baseUri = "YOUR_API_GATEWAY_URL";
     const config = {
       urlPaths: {
-        startMultiPartUploadUrl: baseUri + "StartMultipartUpload",
-        createPresignedUrl: baseUri + "CreatePresignedUrl",
-        completeMultiPartUploadUrl: baseUri + "CompleteMultiPartUpload"
+        startMultiPartUploadUrl: baseUri + "/StartMultipartUpload",
+        createPresignedUrl: baseUri + "/CreatePresignedUrl",
+        completeMultiPartUploadUrl: baseUri + "/CompleteMultiPartUpload"
       },
       numberOfRetry: 3
     };
 
-    const s3Uploader = new S3Uploader(this.state.selectedFile, config);
+    const progressTracker = (fileProgress) => {
+      console.log(`File: ${fileProgress.fileName} - Size: ${fileProgress.fileSize},  ${fileProgress.progress}% Complete`);
+    };
+    const s3Uploader = new S3Uploader(this.state.selectedFile, config, progressTracker);
     s3Uploader.Upload();
   }
 
