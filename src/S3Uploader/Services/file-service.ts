@@ -1,7 +1,7 @@
 class FileService {    
     public calculateChunks(file: File) {
         const MAXIMUM_MULTIPART_PARTS_SIZE = 10000; // AWS hard limit
-        let fileChunkSize = 5242880; // 5MB as default 
+        let fileChunkSize = 10485760; // 10MB as default 
         let numberOfChunks = Math.floor(file.size / fileChunkSize) + 1;
 
         if (numberOfChunks > MAXIMUM_MULTIPART_PARTS_SIZE) {
