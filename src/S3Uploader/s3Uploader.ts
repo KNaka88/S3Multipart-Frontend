@@ -107,7 +107,7 @@ class S3Uploader {
         }
     }
     
-    private async upload(
+    private async upload (
         request: CreatePresignedUrlsResponse, fileChunkSize: number, numberOfChunks: number)
         : Promise<AxiosResponse<PutMultiPartFileresponse>> {
             const blob = this.fileService.createBlob(this.file, fileChunkSize, request.partNumber, numberOfChunks);
