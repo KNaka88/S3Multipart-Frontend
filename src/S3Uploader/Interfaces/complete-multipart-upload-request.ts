@@ -1,6 +1,6 @@
 export interface CompleteMultiPartUploadRequest {
-    bucketName: string,
-    key: string,
+    fileName: string,
+    folderName: string,
     partETags: Array<PartETag>,
     uploadId: string
 }

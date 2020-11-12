@@ -1,6 +1,6 @@
 export interface CreatePresignedUrlsRequest {
-    key: string;
-    bucketName: string;
+    fileName: string;
+    folderName: string;
     partNumbers: Array<number>;
     uploadId: string;
     contentType: string;
